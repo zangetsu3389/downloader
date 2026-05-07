@@ -18,30 +18,39 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        # استفاده از آخرین نسخه v4
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        # استفاده از آخرین نسخه v5
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install selenium requests
 
-      - name: Install ChromeDriver
+      - name: Install Google Chrome
         run: |
-          # نصب کروم
+          sudo apt-get update
+          sudo apt-get install -y wget gnupg2
+          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
           sudo apt-get update
           sudo apt-get install -y google-chrome-stable
-          # تشخیص نسخه کروم و نصب درایور مطابقت
+
+      - name: Install ChromeDriver
+        run: |
+          # دریافت نسخه کروم نصب شده
           CHROME_VERSION=$(google-chrome --version | grep -oP '[\d.]+')
-          # استفاده از آخرین نسخه درایور برای آن نسخه کروم
+          # دریافت آخرین درایور مطابقت
           CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}")
           wget "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip"
           unzip chromedriver_linux64.zip
           sudo mv chromedriver /usr/local/bin/
+          chromedriver --version
 
       - name: Run Downloader
         env:
@@ -57,13 +66,16 @@ jobs:
           sed -i "s|TARGET_URL = \".*\"|TARGET_URL = \"$TARGET_URL\"|" downloader.py
           sed -i "s|wait_time=2|wait_time=$WAIT_TIME|" downloader.py
           
-          python downloader.py
+          # اجرای پایتون و نمایش خطاها در صورت بروز مشکل
+          python downloader.py || {
+            echo "خطا در اجرای اسکریپت پایتون رخ داد."
+            cat downloader.py # نمایش کد پایتون برای دیباگ
+            exit 1
+          }
 
       - name: Upload Artifacts
-        # تغییر مهم: استفاده از نسخه 4
         uses: actions/upload-artifact@v4
         with:
           name: downloaded-page-assets
           path: ./downloaded_assets/
-          # اگر فایل‌ها زیاد هستند، این گزینه به فشرده‌سازی کمک می‌کند
           compression-level: 9
