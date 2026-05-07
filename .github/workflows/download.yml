@@ -32,12 +32,12 @@ jobs:
 
       - name: Install ChromeDriver
         run: |
-          chromedriver --version
-          # نصب خودکار کروم در اوبونتو گیت‌هاب اکشن‌ها معمولاً پیش‌فرض است، اما برای اطمینان:
+          # نصب کروم
           sudo apt-get update
           sudo apt-get install -y google-chrome-stable
-          # دانلود درایور مطابقت با نسخه کروم نصب شده
+          # تشخیص نسخه کروم و نصب درایور مطابقت
           CHROME_VERSION=$(google-chrome --version | grep -oP '[\d.]+')
+          # استفاده از آخرین نسخه درایور برای آن نسخه کروم
           CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}")
           wget "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip"
           unzip chromedriver_linux64.zip
@@ -53,14 +53,17 @@ jobs:
             exit 1
           fi
           
-          # ویرایش فایل پایتون برای استفاده از ورودی‌ها
+          # جایگزینی URL در فایل پایتون
           sed -i "s|TARGET_URL = \".*\"|TARGET_URL = \"$TARGET_URL\"|" downloader.py
           sed -i "s|wait_time=2|wait_time=$WAIT_TIME|" downloader.py
           
           python downloader.py
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
+        # تغییر مهم: استفاده از نسخه 4
+        uses: actions/upload-artifact@v4
         with:
           name: downloaded-page-assets
           path: ./downloaded_assets/
+          # اگر فایل‌ها زیاد هستند، این گزینه به فشرده‌سازی کمک می‌کند
+          compression-level: 9
