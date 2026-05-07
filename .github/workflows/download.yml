@@ -1,0 +1,66 @@
+name: Download Page Assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'آدرس صفحه‌ای که می‌خواهید دانلود کنید'
+        required: true
+        type: string
+      wait_time:
+        description: 'زمان انتظار برای اسکرول (ثانیه)'
+        required: false
+        type: number
+        default: 3
+
+jobs:
+  download-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install selenium requests
+
+      - name: Install ChromeDriver
+        run: |
+          chromedriver --version
+          # نصب خودکار کروم در اوبونتو گیت‌هاب اکشن‌ها معمولاً پیش‌فرض است، اما برای اطمینان:
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+          # دانلود درایور مطابقت با نسخه کروم نصب شده
+          CHROME_VERSION=$(google-chrome --version | grep -oP '[\d.]+')
+          CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_${CHROME_VERSION}")
+          wget "https://chromedriver.storage.googleapis.com/${CHROMEDRIVER_VERSION}/chromedriver_linux64.zip"
+          unzip chromedriver_linux64.zip
+          sudo mv chromedriver /usr/local/bin/
+
+      - name: Run Downloader
+        env:
+          TARGET_URL: ${{ github.event.inputs.target_url }}
+          WAIT_TIME: ${{ github.event.inputs.wait_time }}
+        run: |
+          if [ -z "$TARGET_URL" ]; then
+            echo "لطفاً آدرس URL را وارد کنید."
+            exit 1
+          fi
+          
+          # ویرایش فایل پایتون برای استفاده از ورودی‌ها
+          sed -i "s|TARGET_URL = \".*\"|TARGET_URL = \"$TARGET_URL\"|" downloader.py
+          sed -i "s|wait_time=2|wait_time=$WAIT_TIME|" downloader.py
+          
+          python downloader.py
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: downloaded-page-assets
+          path: ./downloaded_assets/
